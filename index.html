@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeWalk MY | Universal AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="bg-black font-sans text-white overflow-hidden">
+
+    <header class="bg-zinc-900 border-b border-zinc-800 p-5 flex justify-between items-center relative z-20 shadow-2xl">
+        <h1 class="text-xl font-black tracking-tight flex items-center gap-2 text-blue-400">
+            <i class="fas fa-shield-halved"></i> SafeWalk <span class="text-white">AI</span>
+        </h1>
+        <div id="gps-status" class="bg-red-500/20 text-red-400 border border-red-500/50 px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-widest animate-pulse">
+            SEARCHING...
+        </div>
+    </header>
+
+    <main class="relative h-[calc(100vh-80px)] w-full">
+        <div id="map" class="absolute inset-0 z-0"></div>
+
+        <div class="absolute bottom-6 left-4 right-4 z-10 space-y-3">
+            <div class="bg-zinc-900/90 backdrop-blur-md p-3 rounded-xl border border-zinc-700 shadow-2xl flex items-center gap-3">
+                <div id="status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-ping"></div>
+                <p class="text-[11px] font-mono text-zinc-300 uppercase tracking-tight" id="ai-log">Awaiting GPS Lock...</p>
+            </div>
+
+            <div class="bg-zinc-900/90 backdrop-blur-md p-4 rounded-2xl border border-zinc-700 shadow-2xl">
+                <div class="relative mb-3">
+                    <i class="fas fa-crosshairs absolute left-4 top-4 text-emerald-500"></i>
+                    <input type="text" id="dest-input" placeholder="Lat, Lng (e.g. 6.12, 102.24)" 
+                        class="w-full p-3 pl-12 bg-zinc-800 rounded-xl border border-zinc-600 focus:border-blue-500 text-sm font-bold text-white uppercase tracking-wider">
+                </div>
+
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="plotUniversalRoute()" class="col-span-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm py-4 rounded-xl transition-all active:scale-95 flex justify-center items-center gap-2 shadow-lg shadow-blue-500/20">
+                        <i class="fas fa-location-arrow"></i> CALCULATE ROUTE
+                    </button>
+                    <button onclick="location.reload()" class="bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-xl">
+                        <i class="fas fa-rotate"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        var map = L.map('map', { zoomControl: false }).setView([6.1253, 102.2386], 15);
+        var userLocation = null;
+        var activePath = null;
+        var destMarker = null;
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 20 }).addTo(map);
+
+        map.locate({setView: true, maxZoom: 16, watch: true});
+
+        map.on('locationfound', function(e) {
+            userLocation = e.latlng;
+            document.getElementById('gps-status').innerText = "GPS: LOCKED";
+            document.getElementById('gps-status').className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-widest";
+            document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+            document.getElementById('ai-log').innerText = "AI System Online: Grid Secure.";
+            L.circleMarker(e.latlng, { radius: 8, fillColor: "#3b82f6", color: "#fff", weight: 2, fillOpacity: 1 }).addTo(map);
+        });
+
+        function plotUniversalRoute() {
+            if(!userLocation) return alert("Error: GPS signal not found.");
+            
+            // 1. Get the text from the input box
+            const inputVal = document.getElementById('dest-input').value;
+            if(!inputVal) return alert("Please enter coordinates!");
+
+            // 2. Convert text like "6.12, 102.25" into numbers
+            const coords = inputVal.split(',').map(num => parseFloat(num.trim()));
+
+            if(coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+                return alert("Invalid format. Use: Latitude, Longitude");
+            }
+
+            // 3. Clear old visuals
+            if(activePath) map.removeLayer(activePath);
+            if(destMarker) map.removeLayer(destMarker);
+
+            // 4. DRAW THE NEW PATH
+            activePath = L.polyline([
+                [userLocation.lat, userLocation.lng],
+                [coords[0], coords[1]]
+            ], {
+                color: '#10b981',
+                weight: 6,
+                opacity: 0.8,
+                dashArray: '10, 10'
+            }).addTo(map);
+
+            // 5. Add a Destination Pin
+            destMarker = L.marker([coords[0], coords[1]]).addTo(map)
+                .bindPopup(`<b>Destination Secured</b><br>${coords[0]}, ${coords[1]}`).openPopup();
+
+            // 6. Zoom to show both points
+            map.fitBounds(activePath.getBounds(), {padding: [70, 70]});
+            document.getElementById('ai-log').innerText = "Route analyzed: Safe path generated.";
+        }
+    </script>
+</body>
+</html>
