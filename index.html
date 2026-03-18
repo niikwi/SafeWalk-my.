@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeWalk MY | AI Dark Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="bg-black font-sans text-white overflow-hidden">
+
+    <header class="bg-zinc-900 border-b border-zinc-800 p-5 flex justify-between items-center relative z-20">
+        <h1 class="text-xl font-black tracking-tight flex items-center gap-2">
+            <i class="fas fa-radar text-emerald-400"></i> SafeWalk <span class="text-emerald-400">AI</span>
+        </h1>
+        <div id="gps-status" class="bg-red-500/20 text-red-400 border border-red-500/50 px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-widest animate-pulse">
+            Acquiring Signal...
+        </div>
+    </header>
+
+    <main class="relative h-[calc(100vh-80px)] w-full">
+        
+        <div id="map" class="absolute inset-0 z-0"></div>
+
+        <div class="absolute bottom-6 left-4 right-4 z-10 space-y-3">
+            
+            <div class="bg-zinc-900/90 backdrop-blur-md p-3 rounded-xl border border-zinc-700 shadow-2xl flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div>
+                <p class="text-xs font-mono text-zinc-300" id="ai-log">Scanning local grid for lighting data...</p>
+            </div>
+
+            <div class="bg-zinc-900/90 backdrop-blur-md p-4 rounded-2xl border border-zinc-700 shadow-2xl">
+                <div class="relative mb-3">
+                    <i class="fas fa-location-crosshairs absolute left-4 top-4 text-zinc-500"></i>
+                    <input type="text" id="dest" placeholder="Enter destination coordinates..." 
+                        class="w-full p-3 pl-12 bg-zinc-800 rounded-xl border border-zinc-600 focus:outline-none focus:border-emerald-500 text-sm font-semibold text-white placeholder-zinc-500">
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="simulateRouting()" class="col-span-2 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-sm py-3 rounded-xl transition-all active:scale-95 flex justify-center items-center gap-2">
+                        <i class="fas fa-route"></i> PLOT SAFE ROUTE
+                    </button>
+                    <button class="bg-red-500/20 hover:bg-red-500/40 text-red-500 border border-red-500/50 font-black text-sm py-3 rounded-xl transition-all active:scale-95 flex justify-center items-center">
+                        <i class="fas fa-triangle-exclamation"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 1. Initialize Map
+        var map = L.map('map', { zoomControl: false }).setView([6.1253, 102.2386], 14);
+
+        // 2. Load "Dark Matter" Tiles (Professional Night Mode Map)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap & CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // 3. Locate User via Device GPS
+        map.locate({setView: true, maxZoom: 16});
+
+        // 4. When Location is Found
+        map.on('locationfound', function(e) {
+            // Update UI
+            document.getElementById('gps-status').innerText = "GPS: LOCKED";
+            document.getElementById('gps-status').className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-widest";
+            document.getElementById('ai-log').innerText = "AI active: 2 High-Risk zones identified nearby.";
+
+            // User Location Marker (Blue)
+            L.circleMarker(e.latlng, {
+                radius: 8,
+                fillColor: "#3b82f6",
+                color: "#ffffff",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 1
+            }).addTo(map).bindPopup("<b>You are here</b>");
+
+            // GPS Accuracy Radius
+            L.circle(e.latlng, e.accuracy / 2, {
+                color: '#3b82f6',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.1,
+                weight: 1
+            }).addTo(map);
+
+            // SIMULATE AI DATA: Draw "Danger Zones" near the user
+            // Offset coordinates slightly so they appear near the user's actual location
+            let dangerZone1 = [e.latlng.lat + 0.003, e.latlng.lng + 0.002];
+            let dangerZone2 = [e.latlng.lat - 0.002, e.latlng.lng - 0.004];
+
+            L.circle(dangerZone1, {radius: 150, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.2, weight: 1})
+                .addTo(map).bindPopup("<b>AI Alert</b><br>Low street lighting reported.");
+            
+            L.circle(dangerZone2, {radius: 200, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 0.2, weight: 1})
+                .addTo(map).bindPopup("<b>AI Alert</b><br>Recent suspicious activity.");
+        });
+
+        // 5. Error Handling
+        map.on('locationerror', function(e) {
+            document.getElementById('ai-log').innerText = "ERROR: Awaiting Location Permissions.";
+        });
+
+        function simulateRouting() {
+            const dest = document.getElementById('dest').value;
+            if(!dest) return alert("Please input target coordinates.");
+            document.getElementById('ai-log').innerText = "Calculating path avoiding red zones...";
+            
+            // Simulating a loading state on the button
+            const btn = document.querySelector('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ROUTING...';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                alert("Safe route to " + dest + " plotted! (In production, this renders the polyline).");
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
